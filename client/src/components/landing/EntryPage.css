@@ -1,0 +1,30 @@
+.advantages {
+	text-align: center;
+}
+.advantages i {
+	font-size: 30px;
+
+	padding: 20px;
+	margin: 15px 0;
+	background: white;
+
+	border-radius: 50%;
+}
+.advantages p {
+	text-align: left;
+}
+
+.advantages p b {
+	
+}
+
+.advantages .column {
+	background: var(--grey);
+	padding: 5px 30px;
+	transition: all 0.3s ease-in-out;
+}
+.advantages .column:hover {
+	transform: scale(1.2);
+	z-index: 1;
+	border: 1px solid #ccc;
+}

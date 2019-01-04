@@ -1,0 +1,47 @@
+body {
+	padding-top: 5.2rem;
+}
+.navigation {
+	background: #f4f5f6;
+	border-bottom: .1rem solid #d1d1d1;
+	display: block;
+	height: 5.2rem;
+	left: 0;
+	max-width: 100%;
+	position: fixed;
+	right: 0;
+	top: 0;
+	width: 100%;
+	z-index: 1;
+}
+.navigation section {
+	display: flex;
+	justify-content: space-between;
+	line-height: 5.2rem;
+}
+
+.navigation .nav-items a {
+	color: var(--strong-violet);
+}
+.navigation .nav-items a:not(:last-child) {
+	margin-right: 30px;
+}
+
+.logo {
+
+}
+.logo i {
+	position: relative;
+	top: -2px;
+	margin-right: 2px;
+	font-size: 30px;
+	color: var(--violet);
+}
+
+.navigation .corner-image {
+	position: absolute;
+	top: -32px;
+	right: -27px;
+	height: 7.4rem;
+	transform: rotate(45deg);
+}
