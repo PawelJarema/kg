@@ -5,10 +5,12 @@ const 	requireLogin	= require('../middleware/requireLogin'),
 		upload			= multer(),
 		mongoose 		= require('mongoose'),
 		User 			= mongoose.model('user'), 
+		Circle 			= mongoose.model('circle'),
 		Mailer			= require('../services/mailer'),
 		verifyEmailTemplate = require('../services/emailTemplates/verifyEmail');
 
 const 	business 		= require('../helpers/business'),
+		regexp 			= require('../helpers/regexp'),
 		{ ObjectId }	= mongoose.Types;
 
 const 	saltRounds = 10;
@@ -25,7 +27,82 @@ function bounceRegister(req, res, message, err) {
 	res.send(false);
 }
 
+async function createUserAccount(req, { email, password, password_confirm, rodo }) {
+	if (!regexp.password.test(password)) {
+		req.session.error = 'Zbyt słabe hasło';
+		return;
+	}
+
+	if (password !== password_confirm) {
+		req.session.error = 'Hasło i potwierdzenie hasła muszą się zgadzać';
+		return;
+	}
+
+	if (await User.countDocuments({ 'contact.email': email })) {
+		return await User.findOne({ 'contact.email': email });
+	}
+
+	bcrypt.hash(password, saltRounds, async (err, hash) => {
+		if (err) {
+			bounceRegister(req, res, 'Nastąpił błąd', err);
+			return;
+		}
+
+		const newUser = await new User({
+			joindate: new Date().getTime(),
+			contact: { email },
+			security: { password: hash, verified: false },
+			agreements: { rodo: rodo === 'on' }
+		}).save();
+
+		// TODO send mail
+		const subject = business.name + ': Zweryfikuj email';
+		const recipients = [{ email }];
+		const mailer = new Mailer({ subject, recipients }, verifyEmailTemplate(newUser._id));
+		await mailer.send();
+
+		return newUser;
+	});
+}
+
+async function createCircleProfile(req, user, { wojewodztwo, gmina, miejscowosc }) {
+	if (!user) {
+		return;
+	}
+
+	if (await Circle.countDocuments({ _user: user._id })) {
+		req.session.error = 'Już zarejestrowałeś koło';
+		return;
+	}
+
+	const circle = new Circle({
+		_user: user._id,
+		created: new Date().getTime(),
+		location: {
+			wojewodztwo,
+			gmina,
+			miejscowosc
+		}
+	});
+
+	await circle.save();
+
+	return circle;
+}
+
 module.exports = app => {
+	app.post('/auth/circle', upload.any(), async (req, res) => {
+		const user 		= await createUserAccount(req, req.body),
+			  circle 	= await createCircleProfile(req, user, req.body);
+
+	    if (user && circle) {
+	    	req.session.message = 'Na adres E-mail założyciela została wysłana wiadomość z prośbą o potwierdzenie rejestracji';
+	    	res.send(true)
+	    } else {
+	    	res.send(false);
+	    }		
+	});
+
 	app.post('/auth/password', [requireLogin, upload.any()], async (req, res) => {
 		const { password, password_confirm } = req.body;
 
@@ -132,65 +209,31 @@ module.exports = app => {
 	});
 
 	app.post('/auth/register', upload.any(), async (req, res) => {
-		const { email, password, confirm_password, rodo } = req.body;
-
-		if (!rodo) {
-			bounceRegister(req, res, 'Zaakceptuj przetwarzanie danych osobowych');
-			return;
-		}
-
-		if (!email || !password) {
-			bounceRegister(req, res, 'Wpisz email i hasło');
-			return;
-		}
-
-		const user = await User.findOne({ 'contact.email': email });
+		const user = await createUserAccount(req, req.body);
 		if (user) {
-			bounceRegister(req, res, 'Konto już istnieje');
-			return;
+			req.session.message = 'Na podany adres E-mail przesłaliśmy prośbę o zatwierdzenie rejestracji';
+			res.send(true);
+		} else {
+			res.send(false);
 		}
-
-		if (password !== confirm_password) {
-			bounceRegister(req, res, 'Hasło i potwierdzenie hasła nie pokrywają się');
-			return;
-		}
-
-		bcrypt.hash(password, saltRounds, async (err, hash) => {
-			if (err) {
-				bounceRegister(req, res, 'Nastąpił błąd', err);
-				return;
-			}
-
-			const newUser = await new User({
-				joindate: new Date().getTime(),
-				contact: { email },
-				security: { password: hash, verified: false },
-				agreements: { rodo: rodo === 'on' }
-			}).save();
-
-			// TODO send mail
-			const subject = 'Zweryfikuj email ' + business.name;
-			const recipients = [{ email }];
-			const mailer = new Mailer({ subject, recipients }, verifyEmailTemplate(newUser._id));
-			await mailer.send();
-
-			req.session.message = "Na podany E-mail została wysłana wiadomość z prośbą o potwierdzenie rejestracji. Sprawdź folder Spam, jeśli nie możesz jej odnaleźć";
-			res.redirect('/');
-		});
 	});
 
 	app.get('/auth/verify-email/:id', async (req, res) => {
         let id = req.params.id;
-        
+
         let user = await User.findOne({ _id: ObjectId(id) });
         user.security.verified = true;
         await user.save()
         	.then(() => {
 	            req.login(user, err => {
+	            	if (err) {
+	            		console.log('error', err);
+	            	};
 	            	req.session.message = `E-mail został zatwierdzony. Witamy w serwisie ${business.name}`;
 	            	res.redirect('/');
 	            }); 
 	        }, (err) => {
+	        	console.log(err);
 	            req.session.error = "Coś poszło nie tak i email nie został zatwierdzony. Spróbuj później";
 	            res.redirect('/');
 	        });

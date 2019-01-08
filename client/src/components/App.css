@@ -4,7 +4,9 @@
 	--violet: #9b4dca;
 	--strong-violet: #9c27b0;
 
-	--red: #d81b60;
+	--red: #e53935;
+
+	--green: #8bc34a;
 }
 
 .container {
@@ -42,4 +44,23 @@ button i.material-icons {
 }
 .white {
 	background: white;
+}
+
+.flash-message {
+	position: fixed;
+	top: 100px;
+	right: 70px;
+	padding: 20px 50px;
+	color: white;
+
+	border: 1px solid #eee;
+	transition: all 0.3s ease-in-out;
+}
+
+.flash-message.message {
+	background: var(--green);
+}
+
+.flash-message.error {
+	background: var(--red);
 }

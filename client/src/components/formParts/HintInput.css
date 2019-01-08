@@ -1,0 +1,15 @@
+.hint-list {
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.hint-list li {
+	box-sizing: inherit;
+	width: inherit;
+	padding: 5px;
+	margin: 0;
+	cursor: pointer;
+}
+.hint-list li:hover {
+	background: #f4f4f4;
+}

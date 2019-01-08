@@ -22,13 +22,18 @@ app.use(cookie_session({
 
 mongoose.connect(keys.mongoURI);
 require('./models/User');
+require('./models/Wojewodztwo');
+require('./models/Gmina');
+require('./models/Miejscowosc');
+require('./models/Circle');
 
 require('./services/passport');
 app.use(passport.initialize());
 app.use(passport.session());
 
-require('./routes/messageRoutes');
-require('./routes/authRoutes');
+require('./routes/dbRoutes')(app);
+require('./routes/messageRoutes')(app);
+require('./routes/authRoutes')(app);
 
 if (in_production) {
 	app.use(express.static('client/build'));

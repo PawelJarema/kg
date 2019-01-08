@@ -2,13 +2,11 @@ import React, { Component } from 'react';
 import { NavLink } from 'react-router-dom';
 import './TopNav.css';
 
-const nav_items = [
- 	{ title: 'Zarejestruj koło', path: '/zaloz-kolo', className: '' },
- 	{ title: 'Dołącz do koła', path: '/wyszukaj', className: '' }
- ];
 
 class TopNav extends Component {
 	render() {
+		const nav_items = this.props.navitems;
+		
 		return (
 			<nav className="navigation">
 				<section className="container">
