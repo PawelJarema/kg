@@ -11,7 +11,7 @@ class TopNav extends Component {
 			<nav className="navigation">
 				<section className="container">
 					<span className="logo">
-						<i className="material-icons">person_pin</i> Koła Gospodyń Wiejskich
+						<NavLink to="/"><i className="material-icons">person_pin</i> Koła Gospodyń Wiejskich</NavLink>
 					</span>
 					<ul className="nav-items">
 						{

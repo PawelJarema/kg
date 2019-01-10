@@ -26,6 +26,11 @@ body {
 .navigation .nav-items a:not(:last-child) {
 	margin-right: 30px;
 }
+.navigation .nav-items i {
+	font-size: 12px;
+	margin-top: -3px;
+	margin-left: 5px;
+}
 
 .logo {
 
@@ -44,4 +49,8 @@ body {
 	right: -27px;
 	height: 7.4rem;
 	transform: rotate(45deg);
+}
+
+.logo a:focus {
+	color: var(--violet);
 }

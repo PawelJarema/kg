@@ -7,7 +7,8 @@ const 	requireLogin	= require('../middleware/requireLogin'),
 		User 			= mongoose.model('user'), 
 		Circle 			= mongoose.model('circle'),
 		Mailer			= require('../services/mailer'),
-		verifyEmailTemplate = require('../services/emailTemplates/verifyEmail');
+		verifyEmailTemplate = require('../services/emailTemplates/verifyEmail'),
+		remindPasswordTemplate = require('../services/emailTemplates/remindPassword');
 
 const 	business 		= require('../helpers/business'),
 		regexp 			= require('../helpers/regexp'),
@@ -27,7 +28,26 @@ function bounceRegister(req, res, message, err) {
 	res.send(false);
 }
 
+function randomizePassword(chars) {
+	const charTable = 'abcdefghijklmnopqrstuwxyzABCDEFGHIJKLMNOPQRSTUWXYZ1234567890_-!@#$%^&*',
+		  charArray = charTable.split(''),
+		  charCount = charArray.length,
+		  random    = (from, to) => parseInt(Math.random() * (to - from + 1) + from);
+
+	let newPassword = '';
+	for (let i = 0; i < chars; i++) {
+		newPassword += charArray[random(0, charCount)];
+	}
+
+	return newPassword;
+}
+
 async function createUserAccount(req, { email, password, password_confirm, rodo }) {
+	if (await User.countDocuments({ 'contact.email': email })) {
+		req.session.message = 'To konto już istnieje';
+		return await User.findOne({ 'contact.email': email });
+	}
+
 	if (!regexp.password.test(password)) {
 		req.session.error = 'Zbyt słabe hasło';
 		return;
@@ -36,10 +56,6 @@ async function createUserAccount(req, { email, password, password_confirm, rodo 
 	if (password !== password_confirm) {
 		req.session.error = 'Hasło i potwierdzenie hasła muszą się zgadzać';
 		return;
-	}
-
-	if (await User.countDocuments({ 'contact.email': email })) {
-		return await User.findOne({ 'contact.email': email });
 	}
 
 	bcrypt.hash(password, saltRounds, async (err, hash) => {
@@ -60,6 +76,8 @@ async function createUserAccount(req, { email, password, password_confirm, rodo 
 		const recipients = [{ email }];
 		const mailer = new Mailer({ subject, recipients }, verifyEmailTemplate(newUser._id));
 		await mailer.send();
+
+		req.session.message = 'Na podany adres E-mail przesłaliśmy prośbę o zatwierdzenie rejestracji';
 
 		return newUser;
 	});
@@ -96,7 +114,6 @@ module.exports = app => {
 			  circle 	= await createCircleProfile(req, user, req.body);
 
 	    if (user && circle) {
-	    	req.session.message = 'Na adres E-mail założyciela została wysłana wiadomość z prośbą o potwierdzenie rejestracji';
 	    	res.send(true)
 	    } else {
 	    	res.send(false);
@@ -127,13 +144,13 @@ module.exports = app => {
 	});
 
 	app.post('/auth/update', [requireLogin, upload.any()], async (req, res) => {
-		const { first_name, last_name, email, firm_name, website, nip, regon, street, post_code, city } = req.body;
+		const { firstname, lastname, email, firm_name, website, nip, regon, street, post_code, city } = req.body;
 		
 		await User.findOneAndUpdate(
 			{ _id: req.user._id },
 			{
-				first_name,
-				last_name,
+				firstname,
+				lastname,
 				contact: {
 					email
 				},
@@ -198,12 +215,12 @@ module.exports = app => {
 						return;
 					} else {
 						req.session.message = user.firstname ? `Witaj ${user.firstname}!` : 'Zalogowano pomyślnie';
-						res.send('/');
+						res.send('/pulpit');
 					}
 				});
 			} else {
 				req.session.error = 'Nieprawidłowe hasło';
-				res.send('/konto/zaloguj');
+				res.send(false);
 			}
 		});
 	});
@@ -211,7 +228,6 @@ module.exports = app => {
 	app.post('/auth/register', upload.any(), async (req, res) => {
 		const user = await createUserAccount(req, req.body);
 		if (user) {
-			req.session.message = 'Na podany adres E-mail przesłaliśmy prośbę o zatwierdzenie rejestracji';
 			res.send(true);
 		} else {
 			res.send(false);
@@ -230,13 +246,53 @@ module.exports = app => {
 	            		console.log('error', err);
 	            	};
 	            	req.session.message = `E-mail został zatwierdzony. Witamy w serwisie ${business.name}`;
-	            	res.redirect('/');
+	            	res.redirect('/pulpit');
 	            }); 
 	        }, (err) => {
 	        	console.log(err);
 	            req.session.error = "Coś poszło nie tak i email nie został zatwierdzony. Spróbuj później";
 	            res.redirect('/');
 	        });
+    });
+
+    app.post('/auth/remindPassword', upload.any(), async (req, res) => {
+    	const { email } = req.body;
+
+    	if (!email) {
+    		req.session.message = "Wpisz adres E-mail i ponów próbę";
+    		res.send(false);
+    	} else {
+    		const user = await User.findOne({ 'contact.email': email });
+	    	if (!user) {
+	    		req.session.error = "Podany E-mail nie istnieje";
+	    		res.send(false);
+	    	} else {
+	    		const newPassword = randomizePassword(36);
+	    		await bcrypt.hash(newPassword, saltRounds, async (err, hash) => {
+	    			if (err) {
+	    				console.log(err);
+	    				req.session.error = 'Nastąpił błąd. Spróbuj później';
+	    				res.send(false);
+	    			} else {
+	    				user.security.password = hash;
+	    				await user.save()
+	    				.then(
+	    					async doc => { 
+	    						const mailer = new Mailer({ subject: `Przypomnienie hasła: ${business.name}`, recipients: [{email}] }, remindPasswordTemplate(newPassword));
+	    						await mailer.send();
+	    						req.session.message = 'Na podany E-mail wysłaliśmy nowe hasło';
+	    						res.send(true);
+	    					},
+	    					err => { 
+	    						console.log(err); 
+	    						req.session.error = 'Nastąpił błąd. Spróbuj później'; 
+	    						res.send(false);
+	    					}
+	    				);
+	    			}
+	    		});
+	    	}
+    	}
     });
 
 	app.get('/auth/logout', (req, res) => {

@@ -9,6 +9,10 @@
 	--green: #8bc34a;
 }
 
+.fill-height {
+	min-height: 85.2vh;
+}
+
 .container {
 	max-width: 85rem;
 }

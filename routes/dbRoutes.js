@@ -57,6 +57,10 @@ module.exports = app => {
 					gminy_exits			= Boolean(await Gmina.countDocuments({})),
 					miejscowosci_exits	= Boolean(await Miejscowosc.countDocuments({}));
 			
+			const nameInArray = (name, arr) => {
+				return Boolean(arr.filter(item => item.name === name).length);
+			}
+
 			// wojewodztwa i gminy
 			json.map(row => {
 				const { WOJ, NAZWA, NAZWA_DOD } = row;
@@ -64,7 +68,9 @@ module.exports = app => {
 				if (NAZWA_DOD === 'województwo') {
 					wojewodztwa.push({ code: WOJ, name: capitalizeFirstLetter(NAZWA) });
 				} else {
-					gminy.push({ _wcode: WOJ, name: NAZWA });
+					if (!nameInArray(NAZWA, gminy)) {
+						gminy.push({ _wcode: WOJ, name: NAZWA });
+					}
 				}
 			});
 			
@@ -74,7 +80,9 @@ module.exports = app => {
 			.then(json => {
 				json.map(row => {
 					const { WOJ, NAZWA } = row;
-					miejscowosci.push({ _wcode: WOJ, name: NAZWA })
+					if (!nameInArray(NAZWA, miejscowosci)) {
+						miejscowosci.push({ _wcode: WOJ, name: NAZWA })
+					}
 				});
 			});
 

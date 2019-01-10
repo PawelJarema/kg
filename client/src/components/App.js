@@ -4,17 +4,21 @@ import { BrowserRouter, Switch, Route } from 'react-router-dom';
 import TopNav from './navigation/TopNav';
 import EntryPage from './landing/EntryPage';
 import Footer from './footer/Footer';
-import Register from './auth/Register';
+import { RegisterCircle, RegisterUser } from './auth/Register';
+import Login from './auth/Login';
 import './App.css';
 
 import { connect } from 'react-redux';
 import * as messageActions from '../actions/messageActions';
 
+import Icon from './icons/Icon'
+import Page404 from './empty/Page404';
 import { MessageHelper } from '../helpers/Message';
 
 const nav_items = [
 	{ title: 'Zarejestruj koło', path: '/zarejestruj', className: '' },
-	{ title: 'Dołącz do koła', path: '/szukaj', className: '' }
+	{ title: 'Dołącz', path: '/zaloz-konto', className: '' }, // szukaj ?
+	{ title: 'Zaloguj się', path: '/konto/zaloguj', className: '' } // pulpit
 ];
 
 class App extends Component {
@@ -35,7 +39,11 @@ class App extends Component {
 						<TopNav navitems={nav_items}/>
 						<Switch>
 							<Route exact path="/" component={EntryPage} />
-							<Route path="/zarejestruj" component={Register} />
+							<Route path="/zaloz-konto" component={RegisterUser} />
+							<Route path="/zarejestruj" component={RegisterCircle} />
+							<Route path="/konto/zaloguj" component={Login} />
+
+							<Route component={Page404} />
 						</Switch>
 						<Footer />
 					</div>

@@ -4,8 +4,8 @@ const 	mongoose 		= require('mongoose'),
 
 const userSchema = new Schema({
 	joindate: Number,
-	first_name: String,
-	last_name: String,
+	firstname: String,
+	lastname: String,
 	auth: {
 		facebookId: String,
 		googleId: String
