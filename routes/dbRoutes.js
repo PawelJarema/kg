@@ -16,30 +16,40 @@ module.exports = app => {
 	app.post('/api/miejscowosci', async (req, res) => {
 		const wcode = req.body.wcode,
 		      text 	= new RegExp(req.body.text, 'i'),
-			  query = { name: text };
+			  query = { name: text },
+			  options = { sort: { name: 1 } };
 
 		if (wcode) {
 			query['_wcode'] = wcode;
 		}
 
-		res.send(await Miejscowosc.find(query));
+		res.send(await Miejscowosc.find(query, null, options));
 	});
 
 	app.post('/api/gminy', async (req, res) => {
 		const wcode = req.body.wcode,
 		      text 	= new RegExp(req.body.text, 'i'),
-			  query = { name: text };
+			  query = { name: text },
+			  options = { sort: { name: 1 } };
 
 		if (wcode) {
 			query['_wcode'] = wcode;
 		}
 
-		res.send(await Gmina.find(query));
+		res.send(await Gmina.find(query, null, options));
 	});
 
 	app.post('/api/wojewodztwa', async (req, res) => {
 		const text = new RegExp(req.body.text, 'i');
 		res.send(await Wojewodztwo.find({ name: text }));
+	});
+
+	app.get('/api/cdata', async (req, res) => {
+		await Wojewodztwo.deleteMany({}, resultFunction);
+		await Gmina.deleteMany({}, resultFunction);
+		await Miejscowosc.deleteMany({}, resultFunction);
+
+		res.send(true);
 	});
 
 	app.get('/api/seeddb', async (req, res) => {
@@ -49,16 +59,18 @@ module.exports = app => {
 		.then(async json => {
 
 			let 	wojewodztwa 		= [],
-					gminy 				= [],
-					miejscowosci		= [],
+					gminyNames 			= new Set(),
+					gminy 				= {},
+					miejscowosciNames	= new Set(),
+					miejscowosci		= {},
 					resp				= {};
 
 			const 	wojewodztwa_exist 	= Boolean(await Wojewodztwo.countDocuments({})),
 					gminy_exits			= Boolean(await Gmina.countDocuments({})),
 					miejscowosci_exits	= Boolean(await Miejscowosc.countDocuments({}));
-			
-			const nameInArray = (name, arr) => {
-				return Boolean(arr.filter(item => item.name === name).length);
+
+			const setDataToArray = async (set, object) => {
+				return await [...set].map(key => ({ _wcode: object[key], name: key }));
 			}
 
 			// wojewodztwa i gminy
@@ -68,9 +80,8 @@ module.exports = app => {
 				if (NAZWA_DOD === 'województwo') {
 					wojewodztwa.push({ code: WOJ, name: capitalizeFirstLetter(NAZWA) });
 				} else {
-					if (!nameInArray(NAZWA, gminy)) {
-						gminy.push({ _wcode: WOJ, name: NAZWA });
-					}
+					gminyNames.add(NAZWA);
+					gminy[NAZWA] = WOJ;
 				}
 			});
 			
@@ -80,15 +91,10 @@ module.exports = app => {
 			.then(json => {
 				json.map(row => {
 					const { WOJ, NAZWA } = row;
-					if (!nameInArray(NAZWA, miejscowosci)) {
-						miejscowosci.push({ _wcode: WOJ, name: NAZWA })
-					}
+					miejscowosciNames.add(NAZWA);
+					miejscowosci[NAZWA] = WOJ;
 				});
 			});
-
-			//Wojewodztwo.deleteMany({}, resultFunction);
-			//Gmina.deleteMany({}, resultFunction);
-			//Miejscowosc.deleteMany({}, resultFunction);
 
 			if (!wojewodztwa_exist) {
 				Wojewodztwo.insertMany(wojewodztwa, resultFunction);
@@ -98,22 +104,20 @@ module.exports = app => {
 		
 
 			if (!gminy_exits) {
-				Gmina.insertMany(gminy, resultFunction);
-				
+				const data = await setDataToArray(gminyNames, gminy);
+				Gmina.insertMany(data, resultFunction);
+				console.log(data.length);
 			} 
 
 			resp['gminy'] = !gminy_exits ? 'created' : 'exist';
 
 			if (!miejscowosci_exits) {
-				Miejscowosc.insertMany(miejscowosci, resultFunction);
+				const data = await setDataToArray(miejscowosciNames, miejscowosci);
+				Miejscowosc.insertMany(data, resultFunction);
+				console.log(data.length);
 			}
 
 			resp['miejscowosci'] = !miejscowosci_exits ? 'created' : 'exist';
-
-			function resultFunction(err, docs) {
-				if (err) console.log(err) 
-				else console.log('docs saved.');
-			}
 
 			res.send(resp);
 		});
@@ -124,4 +128,9 @@ module.exports = app => {
 		await Circle.deleteMany({});
 		res.send(true);
 	});
+}
+
+function resultFunction(err, docs) {
+	if (err) console.log(err) 
+	else console.log('docs saved.');
 }
